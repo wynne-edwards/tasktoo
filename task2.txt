@@ -1,0 +1,15 @@
+Please find all of my prompts below, each line is a different prompt and they are in order.
+
+Create a Java application to read this file and print out the field values.
+Please use bufferedReader and FileReader instead.
+Change your Java application to only output user-selected fields from that XML file.
+Now change it to output the user-selected fields in JSON format.
+This code only returns the last value not all of the cases.
+Now include enough validation so that your program does not crash if the user types in something unexpected.
+Please also check to see if the field the user entered is actually an option.
+Now switch to using the SAX XML parser instead.
+I get an error with: "String json = convertToJSON(dataList);" which states "dataList cannot be defined as a variable".
+private static String convertToJSON(List<Map<String, String>> dataList) { Gives an error of "this must return a result of type string" Please give me the code for an updated function.
+Error: "java.lang.IndexOutOfBoundsException: Index -2 out of bounds for length 2" and further errors.
+Can you please recreate my code using the SAX parser and all previous steps.
+Please give me a a list of all the prompts I used in this chat in order.
