@@ -1,49 +1,69 @@
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
 import java.util.*;
 
 public class task2 {
 
+    private static List<String> availableFields = Arrays.asList("name", "postalZip", "region", "country", "address", "list");
+    private static List<String> selectedFields = new ArrayList<>();
+
     public static void main(String[] args) {
-        try (BufferedReader br = new BufferedReader(new FileReader("data.xml"))) {
-            List<String> availableFields = getAvailableFields();
-            List<String> selectedFields = getSelectedFields(availableFields);
-            String line;
-            List<Map<String, String>> dataList = new ArrayList<>();
-            while ((line = br.readLine()) != null) {
-                Map<String, String> data = new LinkedHashMap<>();
-                for (String field : selectedFields) {
-                    if (line.contains("<" + field + ">")) {
-                        String value = line.replaceAll("<" + field + ">|</" + field + ">", "").trim();
-                        data.put(field, value);
+
+        // Get user-selected fields
+        selectedFields = getSelectedFields();
+
+        try {
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
+
+            final List<Map<String, String>> dataList = new ArrayList<>();
+
+            DefaultHandler handler = new DefaultHandler() {
+
+                private Map<String, String> currentData = null;
+
+                @Override
+                public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
+                    if (selectedFields.contains(qName)) {
+                        currentData = new LinkedHashMap<>();
                     }
                 }
-                if (!data.isEmpty()) {
-                    dataList.add(data);
+
+                @Override
+                public void endElement(String uri, String localName, String qName) throws SAXException {
+                    if (currentData != null) {
+                        dataList.add(currentData);
+                        currentData = null;
+                    }
                 }
-            }
+
+                @Override
+                public void characters(char ch[], int start, int length) throws SAXException {
+                    if (currentData != null) {
+                        String value = new String(ch, start, length).trim();
+                        currentData.put(selectedFields.get(selectedFields.indexOf(value) - 1), value);
+                    }
+                }
+
+            };
+
+            saxParser.parse("data.xml", handler);
+
             String json = convertToJSON(dataList);
             System.out.println(json);
-        } catch (IOException e) {
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
+
     }
 
-    private static List<String> getAvailableFields() {
-        List<String> availableFields = new ArrayList<>();
-        availableFields.add("name");
-        availableFields.add("postalZip");
-        availableFields.add("region");
-        availableFields.add("country");
-        availableFields.add("address");
-        availableFields.add("list");
-        return availableFields;
-    }
-
-    private static List<String> getSelectedFields(List<String> availableFields) {
+    private static List<String> getSelectedFields() {
         Scanner scanner = new Scanner(System.in);
-        List<String> selectedFields = new ArrayList<>();
         while (true) {
             System.out.println("Enter a field name (or 'done' to finish):");
             String field = scanner.nextLine();
@@ -78,8 +98,11 @@ public class task2 {
             sb.setLength(sb.length() - 2);
             sb.append(" }, ");
         }
-        sb.setLength(sb.length() - 2);
+        if (!dataList.isEmpty()) {
+            sb.setLength(sb.length() - 2);
+        }
         sb.append(" ]");
         return sb.toString();
     }
+    
 }
