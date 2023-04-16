@@ -1,77 +1,128 @@
-import java.io.*;
-import java.util.*;
-import javax.xml.parsers.*;
-import org.xml.sax.*;
-import org.xml.sax.helpers.*;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import org.xml.sax.Attributes;
+import org.xml.sax.helpers.DefaultHandler;
 
 public class task2 {
-    private static List<String> selectedFields;
-    private static List<Map<String, String>> dataList;
-    private static String currentField;
-    private static StringBuilder currentValue;
-    private static Map<String, String> currentData;
-    
+    private static final String FILENAME = "data.xml";
+    private static final String[] VALID_FIELDS = { "name", "postalZip", "region", "country", "address", "list" };
+
     public static void main(String[] args) {
-        selectedFields = new ArrayList<>();
-        dataList = new ArrayList<>();
-        
+        // Read user-selected fields
+        List<String> selectedFields = readSelectedFields();
+
+        // Parse XML file and extract data
+        List<Map<String, String>> dataList = parseXML(selectedFields);
+
+        // Convert data to JSON
+        String json = convertToJSON(dataList);
+
+        // Print JSON output
+        System.out.println(json);
+    }
+
+    private static List<String> readSelectedFields() {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Enter field names (separated by commas): ");
-        String input = scanner.nextLine();
-        selectedFields.addAll(Arrays.asList(input.split(",")));
-        
+        List<String> selectedFields = new ArrayList<>();
+
+        System.out.println("Enter fields to select (one at a time):");
+        System.out.println("(Available fields: name, postalZip, region, country, address, list)");
+        System.out.println("Enter 'done' when finished.");
+
+        while (true) {
+            String input = scanner.nextLine().trim();
+            if (input.equalsIgnoreCase("done")) {
+                break;
+            }
+
+            if (isValidField(input)) {
+                selectedFields.add(input);
+            } else {
+                System.out.println("Invalid field. Please enter a valid field.");
+            }
+        }
+
+        return selectedFields;
+    }
+
+    private static boolean isValidField(String field) {
+        for (String validField : VALID_FIELDS) {
+            if (validField.equalsIgnoreCase(field)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<Map<String, String>> parseXML(List<String> selectedFields) {
+        List<Map<String, String>> dataList = new ArrayList<>();
+
         try {
             SAXParserFactory factory = SAXParserFactory.newInstance();
             SAXParser saxParser = factory.newSAXParser();
+
             DefaultHandler handler = new DefaultHandler() {
-                public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
+                private Map<String, String> dataMap = new HashMap<>();
+                private StringBuilder currentData = new StringBuilder();
+                private boolean isDataValid = false;
+
+                @Override
+                public void startElement(String uri, String localName, String qName, Attributes attributes) {
+                    currentData.setLength(0); // clear current data buffer
+
                     if (qName.equalsIgnoreCase("record")) {
-                        currentData = new HashMap<>();
-                    } else if (selectedFields.contains(qName)) {
-                        currentValue = new StringBuilder();
-                        currentField = qName;
+                        dataMap = new HashMap<>();
                     }
                 }
-                
-                public void characters(char ch[], int start, int length) throws SAXException {
-                    if (currentField != null) {
-                        currentValue.append(new String(ch, start, length));
+
+                @Override
+                public void endElement(String uri, String localName, String qName) {
+                    if (qName.equalsIgnoreCase("record")) {
+                        if (isDataValid) {
+                            dataList.add(dataMap);
+                        }
+                    } else if (isValidField(qName) && selectedFields.contains(qName)) {
+                        dataMap.put(qName, currentData.toString());
+                        isDataValid = true;
                     }
                 }
-                
-                public void endElement(String uri, String localName, String qName) throws SAXException {
-                    if (qName.equalsIgnoreCase("record")) {
-                        dataList.add(currentData);
-                        currentData = null;
-                    } else if (qName.equalsIgnoreCase(currentField)) {
-                        currentData.put(currentField, currentValue.toString());
-                        currentValue = null;
-                        currentField = null;
-                    }
+
+                @Override
+                public void characters(char[] ch, int start, int length) {
+                    currentData.append(ch, start, length);
                 }
             };
-            saxParser.parse(new File("data.xml"), handler);
-            
-            String json = convertToJSON(dataList);
-            System.out.println(json);
+
+            saxParser.parse(new File(FILENAME), handler);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        return dataList;
     }
-    
+
     private static String convertToJSON(List<Map<String, String>> dataList) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("[\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("[ ");
         for (Map<String, String> data : dataList) {
-            builder.append("{\n");
-            for (Map.Entry<String, String> entry : data.entrySet()) {
-                builder.append("\"").append(entry.getKey()).append("\": \"").append(entry.getValue()).append("\",\n");
+            sb.append("{ ");
+            for (String key : data.keySet()) {
+                sb.append("\"" + key + "\" : \"" + data.get(key) + "\", ");
             }
-            builder.setLength(builder.length() - 2); // remove the last comma
-            builder.append("\n},\n");
+            sb.setLength(sb.length() - 2);
+            sb.append(" }, ");
         }
-        builder.setLength(builder.length() - 2); // remove the last comma
-        builder.append("\n]");
-        return builder.toString();
+        if (!dataList.isEmpty()) {
+            sb.setLength(sb.length() - 2);
+        }
+        sb.append(" ]");
+        return sb.toString();
     }
 }
